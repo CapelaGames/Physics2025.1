@@ -12,6 +12,8 @@ public struct JointData
     }
 }
 
+
+
 public class RagdollMe : MonoBehaviour
 {
     Animator animator;
@@ -22,6 +24,8 @@ public class RagdollMe : MonoBehaviour
         animator = GetComponent<Animator>();
 
         GetAllJoints();
+        AddChildRagdoll();
+        SetChildColliders(false);
     }
 
     private void Update()
@@ -30,14 +34,12 @@ public class RagdollMe : MonoBehaviour
         for (int i = 0;  i < jointData.Length ;i++ )
         {
             var joint = jointData[i];
-            float newScore = Mathf.Abs(joint.previousForce
-                - joint.joint.currentForce.magnitude);
+            float newScore = Mathf.Abs(joint.previousForce - joint.joint.currentForce.magnitude);
 
             scoreTotal += newScore;
 
             joint.previousForce = joint.joint.currentForce.magnitude;
         }
-        Debug.Log(scoreTotal);
     }
 
     void GetAllJoints()
@@ -52,8 +54,53 @@ public class RagdollMe : MonoBehaviour
         }
     }
 
-    public void Ragdoll()
+    void AddChildRagdoll()
     {
+        foreach(var rb in GetComponentsInChildren<Rigidbody>())
+        {
+            rb.gameObject.AddComponent<ChildRagdoll>();
+            if (rb.gameObject != gameObject)
+            {
+                rb.isKinematic = true;
+            }
+        }
+    }
+    void SetChildColliders(bool enabled)
+    {
+        Collider currentCol = GetComponent<Collider>();
+        foreach (var col in GetComponentsInChildren<Collider>())
+        {
+            if (col == currentCol)
+            {
+                currentCol.enabled = !enabled;
+            }
+            else
+            {
+                col.enabled = enabled;
+            }
+        }
+    }
+    public void Ragdoll(Vector3 impact)
+    {
+        if (impact.magnitude < 7.5f) return;
+        SetChildColliders(true);
+        ResetVelocities(impact);
         animator.enabled = false;
+        enabled = false;
+    }
+    void ResetVelocities(Vector3 impact)
+    {
+        var rbs = GetComponentsInChildren<Rigidbody>();
+        foreach (var rb in rbs)
+        {
+            rb.isKinematic = false;
+            rb.linearVelocity = -impact / rbs.Length;
+            rb.angularVelocity = Vector3.zero;
+        }
+    }
+
+    private void OnCollisionEnter(Collision collision)
+    {
+        Ragdoll(collision.impulse);
     }
 }
